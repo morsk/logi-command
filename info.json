@@ -1,0 +1,11 @@
+{
+  "name": "LogiCommand",
+  "version": "1.0.0",
+  "title": "logi Command",
+  "author": "morsk",
+  "description": "Convert logistic requests to/from blueprint.",
+  "factorio_version": "1.1",
+  "dependencies": [
+    "base >= 1.1.0"
+  ]
+}
