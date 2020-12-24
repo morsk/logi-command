@@ -267,6 +267,11 @@ function logi_command_internal(event)
       result = export_to_blueprint(target)
       stack.set_blueprint_entities(result)
       player.print("Exported.")
+      if target.index ~= player.index then
+        tname = target.name
+        ends_s = tname:find("s$")
+        stack.label = tname..(ends_s and "'" or "'s").." logistics"
+      end
     else
       -- The player object says we have a blueprint, but the player's cursor
       -- stack says we have nothing. This means it's using the library.
