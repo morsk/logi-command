@@ -1,3 +1,4 @@
+local ceil = math.ceil
 local floor = math.floor
 local max = math.max
 local min = math.min
@@ -7,6 +8,7 @@ local error = error
 
 local M = {} -- object for this module
 local DEBUG = false
+
 local LOGISTICS_DEFAULT_MAX = 4294967295 -- 0xFFFFFFFF
 local MAX_REASONABLE_LOGI_ROWS = 20 -- our own value, to sanity-check data
                                     -- This isn't a limit of the game.
@@ -23,7 +25,77 @@ local function debug_write(filename, obj)
   end
 end
 
+local function new_blank_combinator(x, y)
+  local result = {
+    name = "constant-combinator",
+    position = {
+      x = x + 0.5,
+      y = y + 0.5,
+    },
+    control_behavior = {
+      filters = {
+      }
+    }
+  }
+  return result
+end
+
+local function set_in_combinator(comb, i, name, value)
+  filters = comb.control_behavior.filters
+  filters[#filters+1] = {
+    signal = {
+      type = "item",
+      name = name,
+    },
+    count = value,
+    index = i,
+  }
+end
+
 local function export_to_blueprint(player)
+  local n_logi = player.character.request_slot_count
+  local combinator_slots =
+    game.entity_prototypes["constant-combinator"].item_slot_count
+
+  -- Set values in combinators, constructing combinators as needed.
+  local mins, maxes = {}, {}
+  mins[1] = new_blank_combinator(0, 0) -- This always exists.
+  for i = 1, n_logi do
+    slot = player.get_personal_logistic_slot(i)
+    if slot.name then
+      comb_i = ceil(i / combinator_slots)
+      comb_slot = (i-1) % combinator_slots + 1
+
+      if not mins[comb_i] then
+        mins[comb_i] = new_blank_combinator(comb_i-1, 0)
+      end
+      set_in_combinator(mins[comb_i], comb_slot, slot.name, slot.min)
+
+      if slot.max < LOGISTICS_DEFAULT_MAX then
+        if not maxes[comb_i] then
+          maxes[comb_i] = new_blank_combinator(comb_i-1, 4)
+        end
+        set_in_combinator(maxes[comb_i], comb_slot, slot.name, slot.max)
+      end
+    end
+  end
+
+  -- Add entity_number and collate into blueprint.
+  -- I like both the array order, and the entity_number, to follow rows
+  -- left-to-right, before going down to the next y row.
+  local blueprint_entities = {}
+  local n_combs = 0
+  for _,comb in pairs(mins) do
+    n_combs = n_combs + 1
+    blueprint_entities[n_combs] = comb
+    comb.entity_number = n_combs
+  end
+  for _,comb in pairs(maxes) do
+    n_combs = n_combs + 1
+    blueprint_entities[n_combs] = comb
+    comb.entity_number = n_combs
+  end
+  return blueprint_entities
 end
 
 local function clear_all_logistic_slots(player)
