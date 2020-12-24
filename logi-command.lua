@@ -7,8 +7,6 @@ local pcall = pcall
 local error = error
 
 local M = {} -- object for this module
-local DEBUG = false
-
 local LOGISTICS_DEFAULT_MAX = 4294967295 -- 0xFFFFFFFF
 local MAX_REASONABLE_LOGI_ROWS = 20 -- our own value, to sanity-check data
                                     -- This isn't a limit of the game.
@@ -18,12 +16,6 @@ local MAX_REASONABLE_LOGI_ROWS = 20 -- our own value, to sanity-check data
 -- Used to create empty blueprints for the cursor, because I couldn't find
 -- another way.
 local empty_blueprint_base64 = "0eNqrVkrKKU0tKMrMK1GyqlbKLEnNVbJCEqutBQDZSgyK"
-
-local function debug_write(filename, obj)
-  if DEBUG then
-    game.write_file(filename, serpent.block(obj))
-  end
-end
 
 local function new_blank_combinator(x, y)
   local result = {
@@ -289,7 +281,6 @@ function logi_command_internal(event)
     -- A blueprint without entities. We try to export.
     if stack.valid_for_read then
       result = export_to_blueprint(target)
-      debug_write("foo.txt", result)
       stack.set_blueprint_entities(result)
       player.print("Exported.")
     else
