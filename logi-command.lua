@@ -3,6 +3,7 @@ local floor = math.floor
 local max = math.max
 local min = math.min
 local math_huge = math.huge
+local next = next
 local pcall = pcall
 local error = error
 
@@ -96,8 +97,108 @@ local function clear_all_logistic_slots(player)
   end
 end
 
-local function import_from_blueprint(player, bp_entities)
+-- I've always wanted to do this. It's O(N**2) and a mess of temporaries to
+-- use string concatination in a loop, but O(N) to do it through recursion.
+-- It's not worth it for this, of course.
+local function list_requests(sep, t, i, req)
+  if i then
+    if req.max < LOGISTICS_DEFAULT_MAX then
+      return sep..req.min.."-"..req.max.."[img=item."..req.name.."]"..
+        list_requests(",  ", t, next(t, i))
+    else
+      return sep..req.min.."[img=item."..req.name.."]"..
+        list_requests(",  ", t, next(t, i))
+    end
+  else
+    return ""
+  end
+end
 
+local function import_from_blueprint(player, bp_entities)
+  if type(bp_entities) ~= "table" or #bp_entities < 1 then
+    error("No entities in the blueprint?", 0)
+  end
+
+  -- Pass 1: Find minimums, so we can adjust coordinates around them.
+  local min_x = math_huge
+  local min_y = math_huge
+  for i = 1, #bp_entities do
+    local e = bp_entities[i]
+    if e.name ~= "constant-combinator" then
+      error("Weird entities. Should only be constant combinators.", 0)
+    end
+    min_x = min(min_x, e.position.x)
+    min_y = min(min_y, e.position.y)
+  end
+
+  -- Pass 2: Adjust coordinates, sort combinators into tables.
+  local mins, maxes = {}, {}
+  for i = 1, #bp_entities do
+    local e = bp_entities[i]
+    local x = e.position.x - min_x
+    local y = e.position.y - min_y
+    e.position.x = x
+    e.position.y = y
+    if y == 0 then
+      mins[x+1] = e
+    elseif y == 4 then
+      maxes[x+1] = e
+    else
+      error("Weird combinator rows. Only 0 and 4 should be used.", 0)
+    end
+  end
+
+  -- Pass 3: Build a table of logi requests from the combinators, in order.
+  local requests = {}
+  -- Generic loop to call f(filter, offset).
+  local function loop_combinator_filters(group, f)
+    local combinator_slots =
+      game.entity_prototypes["constant-combinator"].item_slot_count
+    for comb_i, e in pairs(group) do
+      if e.control_behavior and e.control_behavior.filters then
+        local offset = (comb_i - 1) * combinator_slots
+        for j = 1, #e.control_behavior.filters do
+          local filter = e.control_behavior.filters[j]
+          if filter.signal.type ~= "item" then
+            error("Combinator has weird signals: "..
+              filter.signal.type..", "..filter.signal.name, 0)
+          end
+          f(filter, offset)
+        end
+      end
+    end
+  end
+  -- Loop on mins, detect duplicates.
+  local items_seen_in_blueprint = {}
+  loop_combinator_filters(mins, function(filter, offset)
+    logi_name = filter.signal.name
+    if items_seen_in_blueprint[logi_name] then
+      error("Item in blueprint more than once: " .. logi_name, 0)
+    end
+    items_seen_in_blueprint[logi_name] = true
+    requests[filter.index + offset] = {
+      name = logi_name,
+      min = filter.count,
+      max = LOGISTICS_DEFAULT_MAX,
+    }
+  end)
+  -- Loop on maxes, detect mismatch.
+  loop_combinator_filters(maxes, function(filter, offset)
+    i = filter.index + offset
+    if not requests[i] or requests[i].name ~= filter.signal.name then
+      error("Min/max mismatch. Items need to be in matching slots.", 0)
+    end
+    requests[i].max = filter.count
+  end)
+
+  -- Pass 4: Make actual changes.
+  clear_all_logistic_slots(player)
+  for i, request in pairs(requests) do
+    player.set_personal_logistic_slot(i, request)
+  end
+
+  -- Return pretty string of imports.
+  ok, result = pcall(list_requests, "", requests, next(requests))
   if ok then
     return result
   else
