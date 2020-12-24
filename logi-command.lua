@@ -3,6 +3,7 @@ local floor = math.floor
 local max = math.max
 local min = math.min
 local math_huge = math.huge
+local pairs = pairs
 local next = next
 local pcall = pcall
 local error = error
