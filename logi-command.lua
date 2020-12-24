@@ -218,6 +218,30 @@ local function simplify_entity_data(blueprint_entities)
   end
 end
 
+-- I've always wanted to do this. It's O(N**2) and a mess of temporaries to
+-- use string concatination in a loop, and O(N) to do it through recursion.
+-- It's not worth it for this, of course.
+local function list_imports(sep, player, bp_entities, i)
+  if i > #bp_entities then
+    return ""
+  else
+    local e = bp_entities[i]
+    if not e.logi_slot then
+      -- skip
+      return list_imports(sep, player, bp_entities, i+1)
+    else
+      local p = e.logi_params
+      if p.max < LOGISTICS_DEFAULT_MAX then
+        return sep..p.min.."-"..p.max.."[img=item."..p.name.."]"..
+          list_imports(",  ", player, bp_entities, i+1)
+      else
+        return sep..p.min.."[img=item."..p.name.."]"..
+          list_imports(",  ", player, bp_entities, i+1)
+      end
+    end
+  end
+end
+
 local function import_from_blueprint(player, bp_entities)
   debug_write("foo.txt", bp_entities)
   simplify_entity_data(bp_entities)
@@ -232,6 +256,12 @@ local function import_from_blueprint(player, bp_entities)
     if e.logi_slot then
       player.set_personal_logistic_slot(e.logi_slot, e.logi_params)
     end
+  end
+  ok, result = pcall(list_imports, "", player, bp_entities, 1)
+  if ok then
+    return result
+  else
+    error("Import succeeded, but display failed:"..result, 0)
   end
 end
 
@@ -268,8 +298,7 @@ function logi_command_internal(event)
   local bp_entities = player.get_blueprint_entities()
   if bp_entities then
     -- We have entities, so try to import.
-    import_from_blueprint(target, bp_entities)
-    player.print("Imported.")
+    player.print("Imported: "..import_from_blueprint(target, bp_entities))
     player.clear_cursor()
   else
     -- A blueprint without entities. We try to export.
