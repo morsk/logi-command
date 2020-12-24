@@ -1,3 +1,7 @@
+-- Morsk's /logi command: github.com/morsk/logi-command
+-- A version of this code is available on github under a MIT license.
+-- Other projects might have changed the code and/or license.
+
 local ceil = math.ceil
 local floor = math.floor
 local max = math.max
