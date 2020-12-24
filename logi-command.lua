@@ -239,7 +239,11 @@ function logi_command_internal(event)
   local bp_entities = player.get_blueprint_entities()
   if bp_entities then
     -- We have entities, so try to import.
-    player.print("Imported: "..import_from_blueprint(target, bp_entities))
+    import_result = "Imported: "..import_from_blueprint(target, bp_entities)
+    player.print(import_result)
+    if target.index ~= player.index then
+      target.print(import_result)
+    end
     player.clear_cursor()
   else
     -- A blueprint without entities. We try to export.
