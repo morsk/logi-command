@@ -9,11 +9,30 @@ local error = error
 
 local M = {} -- object for this module
 local LOGISTICS_DEFAULT_MAX = 4294967295 -- 0xFFFFFFFF
+local MAX_LOGI_SLOT = 1000
 
 -- Encoding of the simplest blueprint json: {"blueprint":{"item":"blueprint"}}
 -- Used to create empty blueprints for the cursor, because I couldn't find
 -- another way.
 local empty_blueprint_base64 = "0eNqrVkrKKU0tKMrMK1GyqlbKLEnNVbJCEqutBQDZSgyK"
+
+local function request_slot_count(player)
+  if player.character then
+    return player.character.request_slot_count
+  else
+    -- The API provides no way to find the max slot of an offline player,
+    -- except to search the whole thing.
+    -- MAX_LOGI_SLOT is huge, and this spams temp objects.
+    -- This only happens if an admin uses it on an offline player, so
+    -- whatever; do it.
+    for i = MAX_LOGI_SLOT,1,-1 do
+      if player.get_personal_logistic_slot(i).name then
+        return i
+      end
+    end
+    return 0
+  end
+end
 
 local function new_blank_combinator(x, y)
   local result = {
@@ -43,7 +62,7 @@ local function set_in_combinator(comb, i, name, value)
 end
 
 local function export_to_blueprint(player)
-  local n_logi = player.character.request_slot_count
+  local n_logi = request_slot_count(player)
   local combinator_slots =
     game.entity_prototypes["constant-combinator"].item_slot_count
 
@@ -89,11 +108,8 @@ local function export_to_blueprint(player)
 end
 
 local function clear_all_logistic_slots(player)
-  ::again::
-  last = game.player.character.request_slot_count
-  if last > 0 then
-    player.clear_personal_logistic_slot(last)
-    goto again
+  for i = 1, request_slot_count(player) do
+    player.clear_personal_logistic_slot(i)
   end
 end
 
