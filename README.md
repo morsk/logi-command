@@ -2,7 +2,7 @@ logi-command module for Factorio
 ==============================
 
 A /logi command to import and export logistic requests, to blueprints.
-Admins can use it on other players.
+All players can use it. Admins can use it on other players.
 
 Intended for scenarios, especially weekly reset maps. The license is
 free, and the main file can be copied into any scenario to add the
