@@ -2,15 +2,16 @@
 -- A version of this code is available on github under a MIT license.
 -- Other projects might have changed the code and/or license.
 
+local assert = assert
 local ceil = math.ceil
+local error = error
 local floor = math.floor
+local math_huge = math.huge
 local max = math.max
 local min = math.min
-local math_huge = math.huge
-local pairs = pairs
 local next = next
+local pairs = pairs
 local pcall = pcall
-local error = error
 
 local M = {} -- object for this module
 local LOGISTICS_DEFAULT_MAX = 4294967295 -- 0xFFFFFFFF
@@ -40,36 +41,27 @@ local function request_slot_count(player)
 end
 
 local function new_blank_combinator(x, y)
-  local result = {
+  return {
     name = "constant-combinator",
-    position = {
-      x = x + 0.5,
-      y = y + 0.5,
-    },
-    control_behavior = {
-      filters = {
-      }
-    }
+    position = { x = x + 0.5, y = y + 0.5 },
+    control_behavior = { filters = {} }
   }
-  return result
 end
 
 local function set_in_combinator(comb, i, name, value)
-  local filters = comb.control_behavior.filters
-  filters[#filters+1] = {
+  table.insert(comb.control_behavior.filters, {
     signal = {
       type = "item",
       name = name,
     },
     count = value,
     index = i,
-  }
+  })
 end
 
 local function export_to_blueprint(player)
   local n_logi = request_slot_count(player)
-  local combinator_slots =
-    game.entity_prototypes["constant-combinator"].item_slot_count
+  local combinator_slots = game.entity_prototypes["constant-combinator"].item_slot_count
 
   -- Set values in combinators, constructing combinators as needed.
   local mins, maxes = {}, {}
@@ -77,19 +69,13 @@ local function export_to_blueprint(player)
   for i = 1, n_logi do
     local slot = player.get_personal_logistic_slot(i)
     if slot.name then
-      local comb_i = ceil(i / combinator_slots)
+      local comb_x = ceil(i / combinator_slots)
       local comb_slot = (i-1) % combinator_slots + 1
-
-      if not mins[comb_i] then
-        mins[comb_i] = new_blank_combinator(comb_i-1, 0)
-      end
-      set_in_combinator(mins[comb_i], comb_slot, slot.name, slot.min)
-
+      mins[comb_x] = mins[comb_x] or new_blank_combinator(comb_x-1, 0)
+      set_in_combinator(mins[comb_x], comb_slot, slot.name, slot.min)
       if slot.max < LOGISTICS_DEFAULT_MAX then
-        if not maxes[comb_i] then
-          maxes[comb_i] = new_blank_combinator(comb_i-1, 4)
-        end
-        set_in_combinator(maxes[comb_i], comb_slot, slot.name, slot.max)
+        maxes[comb_x] = maxes[comb_x] or new_blank_combinator(comb_x-1, 4)
+        set_in_combinator(maxes[comb_x], comb_slot, slot.name, slot.max)
       end
     end
   end
@@ -99,16 +85,15 @@ local function export_to_blueprint(player)
   -- left-to-right, before going down to the next y row.
   local blueprint_entities = {}
   local n_combs = 0
-  for _,comb in pairs(mins) do
-    n_combs = n_combs + 1
-    blueprint_entities[n_combs] = comb
-    comb.entity_number = n_combs
+  local function add_combs(t)
+    for _,comb in pairs(t) do
+      n_combs = n_combs + 1
+      blueprint_entities[n_combs] = comb
+      comb.entity_number = n_combs
+    end
   end
-  for _,comb in pairs(maxes) do
-    n_combs = n_combs + 1
-    blueprint_entities[n_combs] = comb
-    comb.entity_number = n_combs
-  end
+  add_combs(mins)
+  add_combs(maxes)
   return blueprint_entities
 end
 
@@ -118,9 +103,7 @@ local function clear_all_logistic_slots(player)
   end
 end
 
--- I've always wanted to do this. It's O(N**2) and a mess of temporaries to
--- use string concatination in a loop, but O(N) to do it through recursion.
--- It's not worth it for this, of course.
+-- Make a printable string with min-max[icon] for each request.
 local function list_requests(sep, t, i, req)
   if i then
     if req.max < LOGISTICS_DEFAULT_MAX then
@@ -136,10 +119,7 @@ local function list_requests(sep, t, i, req)
 end
 
 local function import_from_blueprint(player, bp_entities)
-  if type(bp_entities) ~= "table" or #bp_entities < 1 then
-    error("No entities in the blueprint?", 0)
-  end
-
+  assert(#bp_entities > 0)
   -- Pass 1: Find minimums, so we can adjust coordinates around them.
   local min_x = math_huge
   local min_y = math_huge
@@ -156,14 +136,12 @@ local function import_from_blueprint(player, bp_entities)
   local mins, maxes = {}, {}
   for i = 1, #bp_entities do
     local e = bp_entities[i]
-    local x = e.position.x - min_x
-    local y = e.position.y - min_y
-    e.position.x = x
-    e.position.y = y
-    if y == 0 then
-      mins[x+1] = e
-    elseif y == 4 then
-      maxes[x+1] = e
+    local relative_x = e.position.x - min_x
+    local relative_y = e.position.y - min_y
+    if relative_y == 0 then
+      mins[relative_x+1] = e
+    elseif relative_y == 4 then
+      maxes[relative_x+1] = e
     else
       error("Weird combinator rows. Only 0 and 4 should be used.", 0)
     end
@@ -171,18 +149,15 @@ local function import_from_blueprint(player, bp_entities)
 
   -- Pass 3: Build a table of logi requests from the combinators, in order.
   local requests = {}
-  -- Generic loop to call f(filter, offset).
+  -- Generic loop over combinators, then on filters in each combinator.
   local function loop_combinator_filters(group, f)
-    local combinator_slots =
-      game.entity_prototypes["constant-combinator"].item_slot_count
-    for comb_i, e in pairs(group) do
+    local combinator_slots = game.entity_prototypes["constant-combinator"].item_slot_count
+    for comb_x, e in pairs(group) do
       if e.control_behavior and e.control_behavior.filters then
-        local offset = (comb_i - 1) * combinator_slots
-        for j = 1, #e.control_behavior.filters do
-          local filter = e.control_behavior.filters[j]
+        local offset = (comb_x - 1) * combinator_slots
+        for _,filter in pairs(e.control_behavior.filters) do
           if filter.signal.type ~= "item" then
-            error("Combinator has weird signals: "..
-              filter.signal.type..", "..filter.signal.name, 0)
+            error("Combinator has weird signals: "..filter.signal.type..", "..filter.signal.name, 0)
           end
           f(filter, offset)
         end
