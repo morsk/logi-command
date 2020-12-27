@@ -55,7 +55,7 @@ local function new_blank_combinator(x, y)
 end
 
 local function set_in_combinator(comb, i, name, value)
-  filters = comb.control_behavior.filters
+  local filters = comb.control_behavior.filters
   filters[#filters+1] = {
     signal = {
       type = "item",
@@ -75,10 +75,10 @@ local function export_to_blueprint(player)
   local mins, maxes = {}, {}
   mins[1] = new_blank_combinator(0, 0) -- This always exists.
   for i = 1, n_logi do
-    slot = player.get_personal_logistic_slot(i)
+    local slot = player.get_personal_logistic_slot(i)
     if slot.name then
-      comb_i = ceil(i / combinator_slots)
-      comb_slot = (i-1) % combinator_slots + 1
+      local comb_i = ceil(i / combinator_slots)
+      local comb_slot = (i-1) % combinator_slots + 1
 
       if not mins[comb_i] then
         mins[comb_i] = new_blank_combinator(comb_i-1, 0)
@@ -192,7 +192,7 @@ local function import_from_blueprint(player, bp_entities)
   -- Loop on mins, detect duplicates.
   local items_seen_in_blueprint = {}
   loop_combinator_filters(mins, function(filter, offset)
-    logi_name = filter.signal.name
+    local logi_name = filter.signal.name
     if items_seen_in_blueprint[logi_name] then
       error("Item in blueprint more than once: " .. logi_name, 0)
     end
@@ -205,7 +205,7 @@ local function import_from_blueprint(player, bp_entities)
   end)
   -- Loop on maxes, detect mismatch.
   loop_combinator_filters(maxes, function(filter, offset)
-    i = filter.index + offset
+    local i = filter.index + offset
     if not requests[i] or requests[i].name ~= filter.signal.name then
       error("Min/max mismatch. Items need to be in matching slots.", 0)
     end
@@ -219,7 +219,7 @@ local function import_from_blueprint(player, bp_entities)
   end
 
   -- Return pretty string of imports.
-  ok, result = pcall(list_requests, "", requests, next(requests))
+  local ok, result = pcall(list_requests, "", requests, next(requests))
   if ok then
     return result
   else
@@ -227,7 +227,7 @@ local function import_from_blueprint(player, bp_entities)
   end
 end
 
-function logi_command_internal(event)
+local function logi_command_internal(event)
   local player = game.get_player(event.player_index)
   local stack = player.cursor_stack
 
@@ -260,7 +260,7 @@ function logi_command_internal(event)
   local bp_entities = player.get_blueprint_entities()
   if bp_entities then
     -- We have entities, so try to import.
-    import_result = "Imported: "..import_from_blueprint(target, bp_entities)
+    local import_result = "Imported: "..import_from_blueprint(target, bp_entities)
     player.print(import_result)
     if target.index ~= player.index then
       target.print(import_result)
@@ -269,12 +269,12 @@ function logi_command_internal(event)
   else
     -- A blueprint without entities. We try to export.
     if stack.valid_for_read then
-      result = export_to_blueprint(target)
+      local result = export_to_blueprint(target)
       stack.set_blueprint_entities(result)
       player.print("Exported.")
       if target.index ~= player.index then
-        tname = target.name
-        ends_s = tname:find("s$")
+        local tname = target.name
+        local ends_s = tname:find("s$")
         stack.label = tname..(ends_s and "'" or "'s").." logistics"
       end
     else
