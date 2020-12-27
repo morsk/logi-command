@@ -16,10 +16,10 @@ local M = {} -- object for this module
 local LOGISTICS_DEFAULT_MAX = 4294967295 -- 0xFFFFFFFF
 local MAX_LOGI_SLOT = 1000
 
--- Encoding of the simplest blueprint json: {"blueprint":{"item":"blueprint"}}
--- Used to create empty blueprints for the cursor, because I couldn't find
--- another way.
-local empty_blueprint_base64 = "0eNqrVkrKKU0tKMrMK1GyqlbKLEnNVbJCEqutBQDZSgyK"
+local function new_empty_blueprint(cursor_stack)
+  -- Encoding of the simplest blueprint json: {"blueprint":{"item":"blueprint"}}
+  cursor_stack.import_stack("0eNqrVkrKKU0tKMrMK1GyqlbKLEnNVbJCEqutBQDZSgyK")
+end
 
 local function request_slot_count(player)
   if player.character then
@@ -247,14 +247,13 @@ local function logi_command_internal(event)
     error("Only works with blueprints, or with a blank cursor.", 0)
   end
 
-  -- If we aren't holding a blueprint, make one. It's not ideal to do it this
-  -- early. The player could have 0 logistic requests, and we'd fail after
-  -- creating a useless blueprint. But they shouldn't do that anyway.
+  -- It's normal to be holding nothing, and create a new blueprint here.
+  -- If the player holds an empty blueprint they want to export to, that's fine too.
   if not player.is_cursor_blueprint() then
     -- Clear the cursor, just to be sure. The API is weird and it's hard
     -- to tell if the cursor is truly empty.
     player.clear_cursor()
-    stack.import_stack(empty_blueprint_base64)
+    new_empty_blueprint(stack)
   end
 
   local bp_entities = player.get_blueprint_entities()
