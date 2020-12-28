@@ -2,17 +2,6 @@
 -- A version of this code is available on github under a MIT license.
 -- Other projects might have changed the code and/or license.
 
-local assert = assert
-local ceil = math.ceil
-local error = error
-local floor = math.floor
-local math_huge = math.huge
-local max = math.max
-local min = math.min
-local next = next
-local pairs = pairs
-local pcall = pcall
-
 local M = {} -- object for this module
 local LOGISTICS_DEFAULT_MAX = 4294967295 -- 0xFFFFFFFF
 local MAX_LOGI_SLOT = 1000
@@ -69,7 +58,7 @@ local function export_to_blueprint(player)
   for i = 1, n_logi do
     local slot = player.get_personal_logistic_slot(i)
     if slot.name then
-      local comb_x = ceil(i / combinator_slots)
+      local comb_x = math.ceil(i / combinator_slots)
       local comb_slot = (i-1) % combinator_slots + 1
       mins[comb_x] = mins[comb_x] or new_blank_combinator(comb_x-1, 0.5)
       set_in_combinator(mins[comb_x], comb_slot, slot.name, slot.min)
@@ -121,15 +110,15 @@ end
 local function import_from_blueprint(player, bp_entities)
   assert(#bp_entities > 0)
   -- Pass 1: Find minimums, so we can adjust coordinates around them.
-  local min_x = math_huge
-  local min_y = math_huge
+  local min_x = math.huge
+  local min_y = math.huge
   for i = 1, #bp_entities do
     local e = bp_entities[i]
     if e.name ~= "constant-combinator" then
       error("Weird entities. Should only be constant combinators.", 0)
     end
-    min_x = min(min_x, e.position.x)
-    min_y = min(min_y, e.position.y)
+    min_x = math.min(min_x, e.position.x)
+    min_y = math.min(min_y, e.position.y)
   end
 
   -- Pass 2: Adjust coordinates, sort combinators into tables.
