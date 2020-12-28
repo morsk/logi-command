@@ -43,7 +43,7 @@ end
 local function new_blank_combinator(x, y)
   return {
     name = "constant-combinator",
-    position = { x = x + 0.5, y = y + 0.5 },
+    position = { x = x, y = y },
     control_behavior = { filters = {} }
   }
 end
@@ -71,10 +71,10 @@ local function export_to_blueprint(player)
     if slot.name then
       local comb_x = ceil(i / combinator_slots)
       local comb_slot = (i-1) % combinator_slots + 1
-      mins[comb_x] = mins[comb_x] or new_blank_combinator(comb_x-1, 0)
+      mins[comb_x] = mins[comb_x] or new_blank_combinator(comb_x-1, 0.5)
       set_in_combinator(mins[comb_x], comb_slot, slot.name, slot.min)
       if slot.max < LOGISTICS_DEFAULT_MAX then
-        maxes[comb_x] = maxes[comb_x] or new_blank_combinator(comb_x-1, 4)
+        maxes[comb_x] = maxes[comb_x] or new_blank_combinator(comb_x-1, 4.5)
         set_in_combinator(maxes[comb_x], comb_slot, slot.name, slot.max)
       end
     end
