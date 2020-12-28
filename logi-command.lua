@@ -1,25 +1,25 @@
 -- Morsk's /logi command: github.com/morsk/logi-command
 -- A version of this code is available on github under a MIT license.
--- Other projects might have changed the code and/or license.
 
 local M = {} -- object for this module
 local LOGISTICS_DEFAULT_MAX = 4294967295 -- 0xFFFFFFFF
-local MAX_LOGI_SLOT = 1000
+local MAX_LOGI_SLOT = 1000 -- Highest the game supports. Found by experimentation.
 
 local function new_empty_blueprint(cursor_stack)
   -- Encoding of the simplest blueprint json: {"blueprint":{"item":"blueprint"}}
   cursor_stack.import_stack("0eNqrVkrKKU0tKMrMK1GyqlbKLEnNVbJCEqutBQDZSgyK")
 end
 
+-- What's the highest logi slot in use by player?
 local function request_slot_count(player)
   if player.character then
     return player.character.request_slot_count
   else
-    -- The API provides no way to find the max slot of an offline player,
-    -- except to search the whole thing.
-    -- MAX_LOGI_SLOT is huge, and this spams temp objects.
-    -- This only happens if an admin uses it on an offline player, so
-    -- whatever; do it.
+    -- The API provides no way to find the max slot of an offline player, except
+    -- to search the whole thing. MAX_LOGI_SLOT is huge, and this spams temp
+    -- objects.
+    -- This only happens if an admin uses it on an offline player, so whatever;
+    -- do it.
     for i = MAX_LOGI_SLOT,1,-1 do
       if player.get_personal_logistic_slot(i).name then
         return i
@@ -29,6 +29,7 @@ local function request_slot_count(player)
   end
 end
 
+-- Blueprint data of a new combinator. Not an actual combinator.
 local function new_blank_combinator(x, y)
   return {
     name = "constant-combinator",
@@ -37,6 +38,7 @@ local function new_blank_combinator(x, y)
   }
 end
 
+-- Semantically "comb.filter[i] = (name, value)", although internals differ.
 local function set_in_combinator(comb, i, name, value)
   table.insert(comb.control_behavior.filters, {
     signal = {
@@ -48,6 +50,8 @@ local function set_in_combinator(comb, i, name, value)
   })
 end
 
+-- Returns an array of blueprint entities, based on player's logi requests.
+-- Changes nothing on its own.
 local function export_to_blueprint(player)
   local n_logi = request_slot_count(player)
   local combinator_slots = game.entity_prototypes["constant-combinator"].item_slot_count
@@ -70,8 +74,6 @@ local function export_to_blueprint(player)
   end
 
   -- Add entity_number and collate into blueprint.
-  -- I like both the array order, and the entity_number, to follow rows
-  -- left-to-right, before going down to the next y row.
   local blueprint_entities = {}
   local n_combs = 0
   local function add_combs(t)
@@ -86,6 +88,7 @@ local function export_to_blueprint(player)
   return blueprint_entities
 end
 
+-- Clear all player's logistic slots.
 local function clear_all_logistic_slots(player)
   for i = 1, request_slot_count(player) do
     player.clear_personal_logistic_slot(i)
@@ -107,6 +110,8 @@ local function list_requests(sep, t, i, req)
   end
 end
 
+-- Clear & setup player's logi requests to match blueprint. Returns a printable
+-- string of the import.
 local function import_from_blueprint(player, bp_entities)
   assert(#bp_entities > 0)
   -- Pass 1: Find minimums, so we can adjust coordinates around them.
@@ -191,6 +196,7 @@ local function import_from_blueprint(player, bp_entities)
   end
 end
 
+-- The bulk of the command, separated here for pcall.
 local function logi_command_internal(event)
   local player = game.get_player(event.player_index)
   local stack = player.cursor_stack
@@ -214,8 +220,8 @@ local function logi_command_internal(event)
   -- It's normal to be holding nothing, and create a new blueprint here.
   -- If the player holds an empty blueprint they want to export to, that's fine too.
   if not player.is_cursor_blueprint() then
-    -- Clear the cursor, just to be sure. The API is weird and it's hard
-    -- to tell if the cursor is truly empty.
+    -- Clear the cursor, just to be sure. The API is weird and it's hard to tell
+    -- if the cursor is truly empty.
     player.clear_cursor()
     new_empty_blueprint(stack)
   end
