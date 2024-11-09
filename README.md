@@ -1,3 +1,12 @@
+Archived Repository
+=================
+
+The mod is no longer useful, and I won't waste time maintaining it when
+there are other things needed in this community.
+
+It is open source. You can pay or find someone else to maintain this.
+It is mostly useless so I recommend you don't!
+
 logi-command module for Factorio
 ==============================
 
